@@ -1,0 +1,10 @@
+faiss==1.5.3
+matplotlib==3.7.5
+numpy==1.24.4
+opencv_contrib_python==4.11.0.86
+opencv_python==4.12.0.88
+opencv_python_headless==4.11.0.86
+Pillow==12.1.0
+scenedetect==0.6.7.1
+torch==2.10.0
+tqdm==4.65.2
