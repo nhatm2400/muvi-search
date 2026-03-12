@@ -4,6 +4,7 @@ import open_clip
 import json
 import os
 from configs import settings
+from deep_translator import GoogleTranslator
 
 class VisualSearcher:
     def __init__(self):
@@ -29,10 +30,16 @@ class VisualSearcher:
     def search(self, query_text, top_k=5):
         if not self.index:
             return []
+        try:
+            english_query = GoogleTranslator(source='vi', target='en').translate(query_text)
+            print(f"Original: {query_text} -> Translated: {english_query}")
+        except Exception as e:
+            print(f"Translation error: {e}")
+            english_query = query_text
 
         with torch.no_grad():
             batch = self.tokenizer(
-                [query_text],
+                [english_query],
                 padding="max_length",
                 truncation=True,
                 max_length=64,
