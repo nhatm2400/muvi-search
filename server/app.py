@@ -53,13 +53,17 @@ def search_visual():
 def search_ocr():
     query = request.args.get('q', '').strip()
     mode = request.args.get('mode', 'global').strip()
-    top_k_s1 = int(request.args.get('k_s1', 10))
+    
+    # --- FIX: Ép cứng Backend lấy tối thiểu 50-100 frames cho Stage 1 ---
+    # Bỏ qua tham số k_s1 cũ từ Frontend gửi lên để tránh lỗi cache
+    top_k_s1 = 50  
     top_k_final = int(request.args.get('k_final', 5))
+    # -------------------------------------------------------------------
     
     if not query:
         return jsonify([])
 
-    print(f"OCR Searching for: '{query}' | Mode: {mode}")
+    print(f"OCR Searching for: '{query}' | Mode: {mode} | Stage 1: {top_k_s1} frames")
     results = ocr_engine.search(query, mode=mode, top_k_s1=top_k_s1, top_k_final=top_k_final)
     
     response = []
@@ -76,6 +80,5 @@ def search_ocr():
         })
         
     return jsonify(response)
-
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
