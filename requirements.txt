@@ -8,3 +8,4 @@ Pillow==12.1.0
 scenedetect==0.6.7.1
 torch==2.10.0
 tqdm==4.65.2
+paddleocr==2.8.1
