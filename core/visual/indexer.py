@@ -1,4 +1,6 @@
 import os
+os.environ["OPENCV_FFMPEG_LOGLEVEL"] = "-8"
+os.environ["OPENCV_LOG_LEVEL"] = "OFF"
 import cv2
 import torch
 import open_clip
@@ -90,7 +92,7 @@ class VisualIndexer:
         print(f"Found {len(video_files)} videos. Starting extraction...")
 
         total_extracted = 0
-        for vid in tqdm(video_files, desc="Smart Extraction"):
+        for vid in tqdm(video_files[:1], desc="Smart Extraction"):
             if vid in self.processed_videos:
                 continue
             

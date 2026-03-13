@@ -4,7 +4,7 @@ import torch
 # 1. ĐỊNH NGHĨA CÁC THƯ MỤC GỐC
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-VIDEO_DIR = os.path.join(BASE_DIR, "data", "raw_videos") 
+VIDEO_DIR = os.path.join(BASE_DIR, "data", "raw_videos", "video") 
 KEYFRAME_DIR = os.path.join(BASE_DIR, "data", "keyframes")
 INDEX_DIR = os.path.join(BASE_DIR, "data", "indices")  # Đã đổi thành INDEX_DIR cho chuẩn
 
