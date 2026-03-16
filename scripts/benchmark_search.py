@@ -4,14 +4,7 @@ import time
 
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(project_root)
-
-# --- THÊM ĐOẠN NÀY ĐỂ TRỎ VÀO WORKSPACE BẠN VỪA TẠO ---
 from configs import settings
-BENCHMARK_DIR = os.path.join(settings.BASE_DIR, "data", "benchmark_workspace")
-settings.VISUAL_INDEX_PATH = os.path.join(BENCHMARK_DIR, "faiss_siglip.bin")
-settings.VISUAL_MAP_PATH = os.path.join(BENCHMARK_DIR, "id_mapping.json")
-# --------------------------------------------------------
-
 from core.visual.searcher import VisualSearcher
 
 def main():
