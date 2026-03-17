@@ -1,84 +1,49 @@
-import sys
 import os
+import sys
+from flask import Flask, request, jsonify, render_template, send_from_directory
+from dotenv import load_dotenv
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(current_dir)
+load_dotenv()
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(ROOT_DIR)
 
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
-from flask import Flask, render_template, request, jsonify, send_from_directory
-from configs import settings
 from core.visual.searcher import VisualSearcher
 from core.ocr.searcher import OCRSearcher
+from core.asr.searcher import ASRSearcher
+from core.fusion.searcher import FusionSearcher
 
-app = Flask(__name__, template_folder=os.path.join(project_root, 'templates'))
+app = Flask(__name__, template_folder='../templates')
 
-print("Server starting... Loading Engines...")
-visual_engine = VisualSearcher()
-ocr_engine = OCRSearcher()
-print("All engines loaded successfully!")
+DATA_PATH = os.path.join(ROOT_DIR, "data")
+
+@app.route('/data/<path:filename>')
+def serve_data(filename):
+    return send_from_directory(DATA_PATH, filename)
+
+print("--- Đang khởi tạo hệ thống tìm kiếm đa phương thức ---")
+v_engine = VisualSearcher()
+o_engine = OCRSearcher()
+a_engine = ASRSearcher()
+fusion_engine = FusionSearcher(v_engine, o_engine, a_engine, api_key=os.getenv("GEMINI_API_KEY", ""))
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/images/<path:filename>')
-def serve_image(filename):
-    return send_from_directory(settings.KEYFRAME_DIR, filename)
-
-@app.route('/api/search/visual')
-def search_visual():
-    query = request.args.get('q', '').strip()
-    top_k = int(request.args.get('k', 20))
+@app.route('/api/search/fusion', methods=['POST'])
+def search_fusion():
+    data = request.json
+    query = data.get('query', '').strip()
     
     if not query:
-        return jsonify([])
-
-    print(f"Visual Searching for: '{query}'")
-    results = visual_engine.search(query, top_k=top_k)
-    
-    response = []
-    for item in results:
-        web_path = item['path'].replace('\\', '/')
-        response.append({
-            "image_url": f"/images/{web_path}",
-            "score": round(item['score'], 4),
-            "filename": os.path.basename(item['path'])
-        })
+        return jsonify({"error": "Truy vấn không được để trống"}), 400
         
-    return jsonify(response)
+    try:
+        output = fusion_engine.search(query)
+        return jsonify(output)
+    except Exception as e:
+        print(f"Lỗi xử lý tìm kiếm: {e}")
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/api/search/ocr')
-def search_ocr():
-    query = request.args.get('q', '').strip()
-    mode = request.args.get('mode', 'global').strip()
-    
-    # --- FIX: Ép cứng Backend lấy tối thiểu 50-100 frames cho Stage 1 ---
-    # Bỏ qua tham số k_s1 cũ từ Frontend gửi lên để tránh lỗi cache
-    top_k_s1 = 50  
-    top_k_final = int(request.args.get('k_final', 5))
-    # -------------------------------------------------------------------
-    
-    if not query:
-        return jsonify([])
-
-    print(f"OCR Searching for: '{query}' | Mode: {mode} | Stage 1: {top_k_s1} frames")
-    results = ocr_engine.search(query, mode=mode, top_k_s1=top_k_s1, top_k_final=top_k_final)
-    
-    response = []
-    for item in results:
-        rel_path = os.path.relpath(item['path'], settings.KEYFRAME_DIR)
-        web_path = rel_path.replace('\\', '/')
-        
-        response.append({
-            "image_url": f"/images/{web_path}",
-            "score": round(item['confidence'], 4),
-            "detected_text": item['detected_text'],
-            "filename": item['frame_id'],
-            "timestamp": item['timestamp']
-        })
-        
-    return jsonify(response)
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)
