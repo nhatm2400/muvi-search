@@ -1,142 +1,138 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MVS Project - Multimodal Search</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>MuVi Search - Tìm kiếm Video thông minh</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background-color: #f8f9fa; }
-        .search-header { background: #ffffff; padding: 2rem 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 2rem; }
-        .result-card { transition: transform 0.2s; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .result-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
-        .card-img-top { height: 200px; object-fit: cover; }
-        .score-badge { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
-        .ocr-text { color: #0d6efd; font-weight: bold; margin-top: 5px; font-size: 0.9rem; }
+        .glass-effect { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(8px); }
+        .result-card:hover { transform: translateY(-4px); transition: all 0.3s ease; }
     </style>
 </head>
-<body>
-    <div class="search-header">
-        <div class="container text-center">
-            <h1 class="mb-4">Multimodal Video Search</h1>
-            <div class="row justify-content-center">
-                <div class="col-md-10">
-                    <div class="input-group input-group-lg mb-3">
-                        <select id="engineSelect" class="form-select" style="max-width: 200px;">
-                            <option value="visual">Visual Search</option>
-                            <option value="ocr">OCR Search</option>
-                        </select>
-                        
-                        <select id="ocrModeSelect" class="form-select" style="max-width: 200px; display: none;">
-                            <option value="global">Mode: Global</option>
-                            <option value="ticker">Mode: Ticker</option>
-                            <option value="logo">Mode: Logo</option>
-                        </select>
+<body class="bg-gray-50 min-h-screen text-slate-900">
 
-                        <input type="text" id="searchInput" class="form-control" placeholder="Describe the image or type text...">
-                        <button class="btn btn-primary px-4" type="button" onclick="doSearch()">Search</button>
-                    </div>
+    <header class="sticky top-0 z-50 glass-effect border-b border-gray-200 py-4 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <div class="bg-indigo-600 p-2 rounded-lg text-white">
+                    <i class="fas fa-video fa-lg"></i>
                 </div>
+                <h1 class="text-xl font-bold tracking-tight">MuVi Search</h1>
+            </div>
+
+            <div class="relative w-full max-w-2xl">
+                <input type="text" id="queryInput" placeholder="Tìm người mặc áo đỏ, chữ 'Sự kiện', tiếng đàn piano..."
+                    class="w-full pl-12 pr-4 py-2.5 bg-white border border-gray-300 rounded-full focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all">
+                <i class="fas fa-magic absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <button onclick="handleSearch()" id="searchBtn" class="absolute right-1.5 top-1/2 -translate-y-1/2 bg-indigo-600 text-white px-6 py-1.5 rounded-full hover:bg-indigo-700 transition font-bold text-sm">
+                    Tìm kiếm
+                </button>
             </div>
         </div>
-    </div>
+    </header>
 
-    <div class="container mb-5">
-        <h5 id="statusText" class="text-muted mb-3">Results will appear here...</h5>
-        <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4" id="resultsGrid">
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <div id="analysisPanel" class="hidden mb-8 grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+        <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div class="col-span-full text-center py-20 text-gray-400">
+                <i class="fas fa-search fa-3x mb-4 opacity-10"></i>
+                <p>Nhập mô tả để bắt đầu tìm kiếm đa phương thức</p>
+            </div>
         </div>
-    </div>
+    </main>
 
     <script>
-        // Xử lý ẩn/hiện dropdown Mode của OCR
-        document.getElementById('engineSelect').addEventListener('change', function() {
-            const modeSelect = document.getElementById('ocrModeSelect');
-            if (this.value === 'ocr') {
-                modeSelect.style.display = 'block';
-                document.getElementById('searchInput').placeholder = 'Enter text to search in videos...';
-            } else {
-                modeSelect.style.display = 'none';
-                document.getElementById('searchInput').placeholder = 'Describe the image...';
-            }
-        });
-
-        document.getElementById("searchInput").addEventListener("keypress", function(event) {
-            if (event.key === "Enter") doSearch();
-        });
-
-        async function doSearch() {
-            const query = document.getElementById('searchInput').value.trim();
-            const engine = document.getElementById('engineSelect').value;
-            const ocrMode = document.getElementById('ocrModeSelect').value;
-            const grid = document.getElementById('resultsGrid');
-            const status = document.getElementById('statusText');
-
+        async function handleSearch() {
+            const query = document.getElementById('queryInput').value;
             if (!query) return;
 
-            // Đổi thông báo nếu là OCR vì nó chạy chậm
-            if (engine === 'ocr') {
-                status.innerText = "Searching... (OCR uses Qwen2-VL, this might take a few seconds)";
-            } else {
-                status.innerText = "Searching...";
-            }
-            grid.innerHTML = "";
+            const grid = document.getElementById('resultsGrid');
+            const analysis = document.getElementById('analysisPanel');
+            const btn = document.getElementById('searchBtn');
 
-            // Chọn đúng URL API
-            let apiUrl = '';
-            if (engine === 'visual') {
-                apiUrl = `/api/search/visual?q=${encodeURIComponent(query)}&k=20`;
-            } else {
-                apiUrl = `/api/search/ocr?q=${encodeURIComponent(query)}&mode=${ocrMode}&k_s1=10&k_final=5`;
-            }
+            // Bắt đầu trạng thái tải
+            grid.innerHTML = '<div class="col-span-full text-center py-20"><div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent"></div><p class="mt-4 text-gray-500">Hệ thống đang phân tích và truy xuất...</p></div>';
+            btn.disabled = true;
 
             try {
-                const response = await fetch(apiUrl);
-                
-                if (!response.ok) {
-                    throw new Error(`Server returned ${response.status}`);
-                }
-                
+                const response = await fetch('/api/search/fusion', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
                 const data = await response.json();
 
-                if (data.length === 0) {
-                    status.innerText = "No results found.";
-                    return;
-                }
+                // 1. Hiển thị phân tích của LLM
+                analysis.innerHTML = `
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
+                        <span class="text-[10px] font-bold text-blue-500 uppercase tracking-widest block mb-1">Visual</span>
+                        <p class="text-sm font-medium text-blue-900">${data.analysis.visual || '-'}</p>
+                    </div>
+                    <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 shadow-sm">
+                        <span class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest block mb-1">OCR (${data.analysis.ocr_pos})</span>
+                        <p class="text-sm font-medium text-emerald-900">${data.analysis.ocr || '-'}</p>
+                    </div>
+                    <div class="bg-orange-50 p-4 rounded-xl border border-orange-100 shadow-sm">
+                        <span class="text-[10px] font-bold text-orange-500 uppercase tracking-widest block mb-1">Speech</span>
+                        <p class="text-sm font-medium text-orange-900">${data.analysis.speech || '-'}</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-xl border border-purple-100 shadow-sm">
+                        <span class="text-[10px] font-bold text-purple-500 uppercase tracking-widest block mb-1">Audio Event</span>
+                        <p class="text-sm font-medium text-purple-900">${data.analysis.audio_event || '-'}</p>
+                    </div>
+                `;
+                analysis.classList.remove('hidden');
 
-                status.innerText = `Found ${data.length} results:`;
+                // 2. Hiển thị danh sách kết quả
+                if (data.results.length === 0) {
+                    grid.innerHTML = '<p class="col-span-full text-center py-20 text-gray-500">Không tìm thấy kết quả nào phù hợp.</p>';
+                } else {
+                    grid.innerHTML = data.results.map(item => {
+                        // CHUẨN HÓA ĐƯỜNG DẪN ẢNH: Đảm bảo trỏ về route /data/
+                        let imgUrl = item.path;
+                        if (!imgUrl.startsWith('/data/')) {
+                            imgUrl = '/data/' + imgUrl.replace(/^\//, '');
+                        }
 
-                data.forEach(item => {
-                    const col = document.createElement('div');
-                    col.className = 'col';
-                    
-                    // Render thêm thẻ text nếu là OCR
-                    let extraOcrHtml = '';
-                    if (engine === 'ocr') {
-                        extraOcrHtml = `<div class="ocr-text">"${item.detected_text}"</div>`;
-                    }
+                        const matchScore = Math.round((item.confidence_peak || item.fused_score || 0) * 100);
 
-                    col.innerHTML = `
-                        <div class="card result-card h-100">
-                            <div class="position-relative">
-                                <img src="${item.image_url}" class="card-img-top" alt="Result" loading="lazy">
-                                <span class="score-badge">Score: ${item.score}</span>
+                        return `
+                        <div class="result-card bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-lg transition-all">
+                            <div class="aspect-video relative bg-gray-100 overflow-hidden">
+                                <img src="${imgUrl}" alt="Result Frame" class="w-full h-full object-cover"
+                                     onerror="this.src='https://placehold.co/800x450/f1f5f9/94a3b8?text=Ảnh+không+tồn+tại'">
+                                <div class="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-full">
+                                    MATCH: ${matchScore}%
+                                </div>
                             </div>
-                            <div class="card-body p-2">
-                                ${extraOcrHtml}
-                                <small class="text-muted text-break" style="font-size: 0.8rem;">
-                                    ${item.filename}
-                                </small>
+                            <div class="p-4">
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-tight">${item.frame_id || item.video_id}</span>
+                                    ${item.start_time !== undefined ? `<span class="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-0.5 rounded-lg">Giây: ${item.start_time}s</span>` : ''}
+                                </div>
+                                ${item.text ? `<p class="text-xs text-gray-600 italic line-clamp-2 leading-relaxed mb-4">"${item.text}"</p>` : ''}
+                                <button class="w-full py-2 bg-slate-900 text-white text-[11px] font-bold rounded-xl hover:bg-slate-800 active:scale-95 transition-all uppercase tracking-wide">
+                                    Mở Video
+                                </button>
                             </div>
                         </div>
-                    `;
-                    grid.appendChild(col);
-                });
-
+                        `;
+                    }).join('');
+                }
             } catch (error) {
                 console.error(error);
-                status.innerText = "Error connecting to server.";
+                grid.innerHTML = '<p class="col-span-full text-center py-20 text-red-500 font-medium">Lỗi kết nối server. Vui lòng kiểm tra lại.</p>';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Tìm kiếm';
             }
         }
+
+        // Hỗ trợ nhấn Enter để tìm kiếm
+        document.getElementById('queryInput').addEventListener('keypress', e => e.key === 'Enter' && handleSearch());
     </script>
 </body>
 </html>
