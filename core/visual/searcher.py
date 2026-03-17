@@ -1,66 +1,43 @@
+import os
+import json
 import torch
 import faiss
+import numpy as np
 import open_clip
-import json
-import os
 from configs import settings
-from deep_translator import GoogleTranslator
 
 class VisualSearcher:
     def __init__(self):
-        self.model, _, _ = open_clip.create_model_and_transforms(
+        self.model, _, self.preprocess = open_clip.create_model_and_transforms(
             settings.MODEL_NAME, pretrained=settings.PRETRAINED_WEIGHTS, device=settings.DEVICE
         )
-        self.model.eval()
+        self.tokenizer = open_clip.get_tokenizer(settings.MODEL_NAME)
 
-        wrapper = open_clip.get_tokenizer(settings.MODEL_NAME)
-        self.tokenizer = wrapper.tokenizer
+        self.index = faiss.read_index(settings.VISUAL_INDEX_PATH)
+        with open(settings.VISUAL_MAP_PATH, 'r') as f:
+            self.id_map = json.load(f)
 
-        if os.path.exists(settings.VISUAL_INDEX_PATH):
-            self.index = faiss.read_index(settings.VISUAL_INDEX_PATH)
-        else:
-            self.index = None
-
-        if os.path.exists(settings.VISUAL_MAP_PATH):
-            with open(settings.VISUAL_MAP_PATH, 'r', encoding='utf-8') as f:
-                self.id2path = json.load(f)
-        else:
-            self.id2path = {}
-
-    def search(self, query_text, top_k=5):
-        if not self.index:
-            return []
-        try:
-            english_query = GoogleTranslator(source='vi', target='en').translate(query_text)
-            print(f"Original: {query_text} -> Translated: {english_query}")
-        except Exception as e:
-            print(f"Translation error: {e}")
-            english_query = query_text
-
+    def search(self, query_text, top_k=20):
+        if not query_text: return []
+        
+        text_tokens = self.tokenizer([query_text]).to(settings.DEVICE)
         with torch.no_grad():
-            batch = self.tokenizer(
-                [english_query],
-                padding="max_length",
-                truncation=True,
-                max_length=64,
-                return_tensors="pt"
-            )
-            input_ids = batch["input_ids"].to(settings.DEVICE)
-            
-            text_features = self.model.encode_text(input_ids)
-            text_features /= text_features.norm(dim=-1, keepdim=True)
-            query_vector = text_features.cpu().numpy().astype('float32')
+            query_features = self.model.encode_text(text_tokens)
+            query_features /= query_features.norm(dim=-1, keepdim=True)
+            query_np = query_features.cpu().numpy().astype('float32')
 
-        distances, indices = self.index.search(query_vector, top_k)
-
+        distances, indices = self.index.search(query_np, top_k)
+        
         results = []
         for score, idx in zip(distances[0], indices[0]):
-            if idx == -1: continue
-            str_idx = str(idx)
-            if str_idx in self.id2path:
+            if str(idx) in self.id_map:
+                rel_path = self.id_map[str(idx)]
+                
+                web_path = os.path.join("keyframes", rel_path).replace("\\", "/")
+                
                 results.append({
-                    "path": self.id2path[str_idx],
+                    "frame_id": rel_path.split('/')[-1],
+                    "path": web_path,
                     "score": float(score)
                 })
-
         return results

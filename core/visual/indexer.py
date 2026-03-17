@@ -1,7 +1,6 @@
 import os
 os.environ["OPENCV_FFMPEG_LOGLEVEL"] = "-8"
 os.environ["OPENCV_LOG_LEVEL"] = "OFF"
-
 import cv2
 import torch
 import open_clip
@@ -28,11 +27,9 @@ class KeyframeDataset(Dataset):
     def __getitem__(self, idx):
         path = self.image_paths[idx]
         try:
-            # Nên convert sang RGB để tránh lỗi với ảnh grayscale hoặc RGBA
             img = Image.open(path).convert('RGB')
             return self.preprocess(img), path
         except Exception as e:
-            # Trả về tensor rỗng và cờ lỗi để filter ở DataLoader
             return torch.zeros(3, 224, 224), "ERROR"
 
 class VisualIndexer:
@@ -63,8 +60,6 @@ class VisualIndexer:
 
             cap = cv2.VideoCapture(video_path)
             count = 0
-            
-            # Dùng set để tự động loại bỏ các frame bị trùng lặp (nếu có)
             frames_to_cut_set = set()
             
             if not scene_list:
@@ -76,27 +71,18 @@ class VisualIndexer:
                     
                     start_frame = start_tc.get_frames()
                     end_frame = end_tc.get_frames()
-                    
-                    # Tính thời lượng của scene bằng giây
                     duration_sec = end_tc.get_seconds() - start_tc.get_seconds()
-                    
-                    # Frame ở giữa (luôn lấy)
                     mid_frame = start_frame + (end_frame - start_frame) // 2
                     
                     if duration_sec < 3.0:
-                        # Scene ngắn (< 3 giây): Chỉ lấy 1 frame ở giữa
                         frames_to_cut_set.add(mid_frame)
                     else:
-                        # Scene dài (>= 3 giây): Lấy 3 frame Đầu - Giữa - Cuối
-                        # Trừ 1 ở frame cuối để không lẹm sang scene tiếp theo
                         last_frame = max(start_frame, end_frame - 1)
                         frames_to_cut_set.add(start_frame)
                         frames_to_cut_set.add(mid_frame)
                         frames_to_cut_set.add(last_frame)
 
-            # Sắp xếp lại danh sách frame từ nhỏ đến lớn để cv2.VideoCapture đọc mượt hơn
             frames_to_cut = sorted(list(frames_to_cut_set))
-
             for frame_idx in frames_to_cut:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
                 ret, frame = cap.read()
@@ -134,7 +120,7 @@ class VisualIndexer:
             with open(settings.PROCESSED_LOG_PATH, "a", encoding="utf-8") as f:
                 f.write(vid + "\n")
             
-            self.processed_videos.add(vid) # Cập nhật luôn set in-memory
+            self.processed_videos.add(vid) 
         
         print(f"Extraction finished. Total new frames: {total_extracted}")
 
@@ -169,24 +155,18 @@ class VisualIndexer:
         print("Starting embedding process...")
         with torch.no_grad():
             for batch_images, batch_paths in tqdm(dataloader, desc="Embedding"):
-                # SỬA LỖI: mask phải là tensor kiểu bool để index được trên batch_images
                 valid_mask = torch.tensor([p != "ERROR" for p in batch_paths], dtype=torch.bool)
                 if not valid_mask.any(): 
                     continue
                 
                 real_images = batch_images[valid_mask].to(settings.DEVICE)
-                
-                # TỐI ƯU: Sử dụng autocast để tăng tốc inference (nếu dùng GPU)
                 with torch.autocast(device_type=settings.DEVICE.split(':')[0], enabled=(settings.DEVICE != 'cpu')):
                     batch_features = model.encode_image(real_images)
                 
                 batch_features /= batch_features.norm(dim=-1, keepdim=True)
                 features_list.append(batch_features.cpu().numpy().astype('float32'))
-                
-                # Lọc ra các path hợp lệ
                 valid_paths = [p for p in batch_paths if p != "ERROR"]
                 for path in valid_paths:
-                    # TỐI ƯU: Bỏ try/except thừa, dùng os.path thống nhất
                     rel_path = os.path.relpath(path, settings.KEYFRAME_DIR).replace("\\", "/")
                     id2path[str(global_idx)] = rel_path
                     global_idx += 1

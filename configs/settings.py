@@ -6,19 +6,29 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 VIDEO_DIR = os.path.join(BASE_DIR, "data", "raw_videos", "video") 
 KEYFRAME_DIR = os.path.join(BASE_DIR, "data", "keyframes")
-INDEX_DIR = os.path.join(BASE_DIR, "data", "indices")  # Đã đổi thành INDEX_DIR cho chuẩn
+INDEX_DIR = os.path.join(BASE_DIR, "data", "indices")  
 
 # Định nghĩa các thư mục con trong indices
 VISUAL_DIR = os.path.join(INDEX_DIR, "visual")
 OCR_DIR = os.path.join(INDEX_DIR, "ocr")
+ASR_DIR = os.path.join(INDEX_DIR, "asr")
 
 # 2. ĐƯỜNG DẪN CÁC FILE INDEX & LOG
+# --- Visual ---
 VISUAL_INDEX_PATH = os.path.join(VISUAL_DIR, "faiss_siglip.bin")
 VISUAL_MAP_PATH = os.path.join(VISUAL_DIR, "id_mapping.json")
 PROCESSED_LOG_PATH = os.path.join(INDEX_DIR, "processed_videos_log.txt")
 
-# Khai báo đường dẫn OCR đã sửa lỗi tên biến
+# --- OCR ---
 OCR_INDEX_PATH = os.path.join(OCR_DIR, "sota_index.bin")
+
+# --- ASR ---
+ASR_TEXT_INDEX_PATH = os.path.join(ASR_DIR, "text_index.faiss")
+ASR_AUDIO_INDEX_PATH = os.path.join(ASR_DIR, "audio_index.faiss")
+ASR_METADATA_PATH = os.path.join(ASR_DIR, "metadata.pkl")
+
+# --- Fusion ---
+PEAK_SIGMA = 1.0 
 
 # 3. CẤU HÌNH MODEL & THÔNG SỐ
 MODEL_NAME = 'ViT-B-16-SigLIP'
@@ -27,7 +37,8 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 128
 NUM_WORKERS = 0
 
-# 4. TẠO THƯ MỤC TỰ ĐỘNG (Bổ sung thêm thư mục OCR)
+# 4. TẠO THƯ MỤC TỰ ĐỘNG
 os.makedirs(KEYFRAME_DIR, exist_ok=True)
 os.makedirs(VISUAL_DIR, exist_ok=True)
 os.makedirs(OCR_DIR, exist_ok=True)
+os.makedirs(ASR_DIR, exist_ok=True)

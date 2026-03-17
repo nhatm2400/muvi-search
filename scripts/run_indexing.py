@@ -1,46 +1,66 @@
+"""
+=============================================================================
+MUVI-SEARCH INDEXING PIPELINE
+=============================================================================
+Hướng dẫn chạy script:
+
+1. Chạy toàn bộ hệ thống (Visual, OCR, ASR):
+   python scripts/run_indexing.py --mode all
+
+2. Chạy riêng từng phương thức:
+   - Visual: python scripts/run_indexing.py --mode visual
+   - OCR:    python scripts/run_indexing.py --mode ocr
+   - ASR:    python scripts/run_indexing.py --mode asr
+
+3. Chạy từng bước trong Visual Pipeline (dùng thêm tham số --step):
+   - Chỉ trích xuất frame: python scripts/run_indexing.py --mode visual --step extract
+   - Chỉ crop vật thể:     python scripts/run_indexing.py --mode visual --step crop
+   - Chỉ nhúng vector:     python scripts/run_indexing.py --mode visual --step index
+=============================================================================
+"""
+
 import sys
 import os
 import argparse
 
-# Thêm thư mục gốc vào hệ thống
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.visual.indexer import VisualIndexer
-# Import hàm chạy YOLO từ file generate_crops
-from scripts.generate_crops import main as run_yolo_cropping
+from core.ocr.indexer import OCRIndexer
+from core.asr.indexer import ASRIndexer
+from core.visual.cropper import main as run_yolo_cropping
 
 def main():
-    # Cấu hình ArgumentParser để nhận lệnh từ terminal
-    parser = argparse.ArgumentParser(description="isual Indexing Pipeline")
-    parser.add_argument(
-        '--step', 
-        type=str, 
-        choices=['extract', 'crop', 'index', 'all'], 
-        default='all',
-        help="Chọn bước để chạy: 'extract', 'crop', 'index', hoặc 'all' (mặc định)"
-    )
+    parser = argparse.ArgumentParser(description="Muvi-Search Multi-modal Indexing Pipeline")
+    parser.add_argument('--mode', type=str, choices=['visual', 'ocr', 'asr', 'all'], required=True)
+    parser.add_argument('--step', type=str, choices=['extract', 'crop', 'index', 'all'], default='all')
+    
     args = parser.parse_args()
 
-    print(f"VISUAL PIPELINE (Chế độ: {args.step.upper()})")
-    
-    indexer = VisualIndexer()
-    
-    # BƯỚC 1: Trích xuất khung hình
-    if args.step in ['extract', 'all']:
-        print("\nBƯỚC 1: KEYFRAME EXTRACTION (TEMPORAL) ---")
-        indexer.run_extraction()    
-    
-    # BƯỚC 2: Cắt vật thể nhỏ bằng YOLO
-    if args.step in ['crop', 'all']:
-        print("\nBƯỚC 2: REGION CROPPING (YOLOv8) ---")
-        run_yolo_cropping()
+    if args.mode in ['visual', 'all']:
+        print(f"\n=== VISUAL PIPELINE (Chế độ: {args.step.upper()}) ===")
+        indexer = VisualIndexer()
+        
+        if args.step in ['extract', 'all']:
+            indexer.run_extraction()    
+        
+        if args.step in ['crop', 'all']:
+            run_yolo_cropping()
 
-    # BƯỚC 3: Nhúng vector
-    if args.step in ['index', 'all']:
-        print("\nBƯỚC 3: VECTOR EMBEDDING & FAISS INDEXING ---")
-        indexer.run_indexing()
-    
-    print("\nCOMPLETED")
+        if args.step in ['index', 'all']:
+            indexer.run_indexing()
+
+    if args.mode in ['ocr', 'all']:
+        print("\n=== OCR PIPELINE (Qwen2-VL) ===")
+        o_indexer = OCRIndexer()
+        o_indexer.build_index()
+
+    if args.mode in ['asr', 'all']:
+        print("\n=== ASR PIPELINE (Whisper + PhoBERT) ===")
+        a_indexer = ASRIndexer()
+        a_indexer.build_index()
+
+    print("\n[+] TOÀN BỘ QUÁ TRÌNH INDEXING ĐÃ HOÀN TẤT!")
 
 if __name__ == "__main__":
     main()
