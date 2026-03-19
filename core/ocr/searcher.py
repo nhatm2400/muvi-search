@@ -9,6 +9,7 @@ from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
 from vietocr.tool.predictor import Predictor
 from vietocr.tool.config import Cfg
 from configs import settings
+from thefuzz import fuzz
 
 class OCRSearcher:
     def __init__(self):
@@ -50,7 +51,7 @@ class OCRSearcher:
             max_scores, _ = torch.max(sim, dim=1)
             scored_results.append({"frame_id": item['frame_id'], "raw_score": torch.mean(max_scores).item()})
 
-        top_candidates = sorted(scored_results, key=lambda x: x['raw_score'], reverse=True)[:top_k*3]
+        top_candidates = sorted(scored_results, key=lambda x: x['raw_score'], reverse=True)[:top_k*10]
         final_moments = []
         for cand in top_candidates:
             video_id = cand['frame_id'].split('_f')[0]
@@ -61,7 +62,18 @@ class OCRSearcher:
             
             try:
                 detected_text = self.vietocr_predictor.predict(Image.open(abs_img_path))
-                text_sim = string_sim_ratio(query_text.lower(), detected_text.lower())
+                
+                # BẬT MẮT THẦN: In ra màn hình text của tất cả các ảnh lọt vào vòng này
+                print(f"[DEBUG OCR] Khung hình {cand['frame_id']} | VietOCR đọc được: {detected_text}")
+                
+                q_lower = query_text.lower().strip()
+                d_lower = detected_text.lower().strip()
+                
+                # SỬA LỖI TÍNH ĐIỂM: Dùng partial_ratio để tìm chuỗi con có bù trừ sai chính tả
+                # Thuật toán sẽ trượt dọc theo d_lower, tìm đoạn giống q_lower nhất.
+                # Trả về thang điểm 0 - 100, ta chia 100 để đồng bộ hệ số 0.0 - 1.0 của hệ thống
+                text_sim = fuzz.partial_ratio(q_lower, d_lower) / 100.0
+                
                 fusion_score = (cand['raw_score'] * 0.4) + (text_sim * 0.6)
                 
                 web_path = f"keyframes/{video_id}/{cand['frame_id']}"

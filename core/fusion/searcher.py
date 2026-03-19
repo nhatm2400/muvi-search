@@ -48,7 +48,20 @@ class FusionSearcher:
             )
             
             text_response = response.choices[0].message.content.strip()
-            return json.loads(text_response)
+            data = json.loads(text_response)
+            
+            # --- BỘ LỌC CHỐNG NHIỄU (Xóa Visual nếu chỉ tìm chữ) ---
+            vis_clean = data.get("visual", "").lower().replace("dòng chữ", "").replace("chữ", "").replace('"', '').replace("'", "").strip()
+            ocr_clean = data.get("ocr", "").lower().strip()
+            
+            # Nếu nội dung Visual y hệt OCR, hoặc người dùng chỉ đang gõ tìm chữ -> Ép Visual bằng rỗng
+            if ocr_clean and (vis_clean == ocr_clean or vis_clean == ""):
+                print("[Fusion] Đã tự động xóa Visual rác do truy vấn chỉ tìm chữ.")
+                data["visual"] = ""
+            # --------------------------------------------------------
+            
+            return data
+            
             
         except Exception as e:
             print(f"[!] Lỗi phân tích Groq: {e}. Đang kích hoạt Heuristic Fallback (Regex)...")
