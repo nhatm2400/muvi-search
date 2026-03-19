@@ -52,8 +52,6 @@
             const grid = document.getElementById('resultsGrid');
             const analysis = document.getElementById('analysisPanel');
             const btn = document.getElementById('searchBtn');
-
-            // Bắt đầu trạng thái tải
             grid.innerHTML = '<div class="col-span-full text-center py-20"><div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent"></div><p class="mt-4 text-gray-500">Hệ thống đang phân tích và truy xuất...</p></div>';
             btn.disabled = true;
 
@@ -64,8 +62,6 @@
                     body: JSON.stringify({ query })
                 });
                 const data = await response.json();
-
-                // 1. Hiển thị phân tích của LLM
                 analysis.innerHTML = `
                     <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
                         <span class="text-[10px] font-bold text-blue-500 uppercase tracking-widest block mb-1">Visual</span>
@@ -85,16 +81,15 @@
                     </div>
                 `;
                 analysis.classList.remove('hidden');
-
-                // 2. Hiển thị danh sách kết quả
                 if (data.results.length === 0) {
                     grid.innerHTML = '<p class="col-span-full text-center py-20 text-gray-500">Không tìm thấy kết quả nào phù hợp.</p>';
                 } else {
                     grid.innerHTML = data.results.map(item => {
-                        // CHUẨN HÓA ĐƯỜNG DẪN ẢNH: Đảm bảo trỏ về route /data/
-                        let imgUrl = item.path;
-                        if (!imgUrl.startsWith('/data/')) {
+                        let imgUrl = item.path || "";
+                        if (imgUrl && !imgUrl.startsWith('/data/')) {
                             imgUrl = '/data/' + imgUrl.replace(/^\//, '');
+                        } else if (!imgUrl) {
+                            imgUrl = 'https://placehold.co/800x450/e2e8f0/475569?text=Âm+thanh/Giọng+nói';
                         }
 
                         const matchScore = Math.round((item.confidence_peak || item.fused_score || 0) * 100);
@@ -131,7 +126,6 @@
             }
         }
 
-        // Hỗ trợ nhấn Enter để tìm kiếm
         document.getElementById('queryInput').addEventListener('keypress', e => e.key === 'Enter' && handleSearch());
     </script>
 </body>

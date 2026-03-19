@@ -24,7 +24,7 @@ print("--- Đang khởi tạo hệ thống tìm kiếm đa phương thức ---")
 v_engine = VisualSearcher()
 o_engine = OCRSearcher()
 a_engine = ASRSearcher()
-fusion_engine = FusionSearcher(v_engine, o_engine, a_engine, api_key=os.getenv("GEMINI_API_KEY", ""))
+fusion_engine = FusionSearcher(v_engine, o_engine, a_engine, api_key=os.getenv("GROQ_API_KEY", ""))
 
 @app.route('/')
 def index():
