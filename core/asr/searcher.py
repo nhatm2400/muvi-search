@@ -24,7 +24,7 @@ class ASRSearcher:
         results = []
         
         if speech_query:
-            inputs = self.tokenizer(speech_query, return_tensors="pt", padding=True, truncation=True).to(settings.DEVICE)
+            inputs = self.tokenizer(speech_query, return_tensors="pt", padding=True, truncation=True, max_length=256).to(settings.DEVICE)
             with torch.no_grad():
                 outputs = self.phobert_model(**inputs)
                 query_vec = outputs.last_hidden_state[:, 0, :].cpu().numpy().astype('float32')
@@ -34,13 +34,17 @@ class ASRSearcher:
             for score, idx in zip(distances[0], indices[0]):
                 if idx != -1 and idx < len(self.metadata):
                     meta = self.metadata[idx]
+                    vid_id = meta.get('video_id') or meta.get('vid_name') or meta.get('id') or "unknown_video"
+                    start_t = meta.get('start_time', meta.get('start', 0.0))
+                    
                     results.append({
-                        "video_id": meta['video_id'],
-                        "start_time": meta['start_time'],
+                        "video_id": vid_id,
+                        "start_time": start_t,
                         "text": meta.get('text', ''),
                         "score": float(score),
                         "type": "speech"
                     })
+                    
         if audio_query:
             inputs = self.clap_processor(text=[audio_query], return_tensors="pt").to(settings.DEVICE)
             with torch.no_grad():
@@ -51,9 +55,12 @@ class ASRSearcher:
             for score, idx in zip(distances[0], indices[0]):
                 if idx != -1 and idx < len(self.metadata):
                     meta = self.metadata[idx]
+                    vid_id = meta.get('video_id') or meta.get('vid_name') or meta.get('id') or "unknown_video"
+                    start_t = meta.get('start_time', meta.get('start', 0.0))
+                    
                     results.append({
-                        "video_id": meta['video_id'],
-                        "start_time": meta['start_time'],
+                        "video_id": vid_id,
+                        "start_time": start_t,
                         "text": f"Âm thanh: {audio_query}",
                         "score": float(score),
                         "type": "audio_event"

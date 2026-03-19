@@ -4,6 +4,7 @@ import torch
 import faiss
 import numpy as np
 import open_clip
+from deep_translator import GoogleTranslator
 from configs import settings
 
 class VisualSearcher:
@@ -19,8 +20,14 @@ class VisualSearcher:
 
     def search(self, query_text, top_k=20):
         if not query_text: return []
+        try:
+            eng_query = GoogleTranslator(source='vi', target='en').translate(query_text)
+            print(f"[Visual Engine] Đã dịch: '{query_text}' -> '{eng_query}'")
+        except Exception as e:
+            print(f"[Visual Engine] Lỗi dịch thuật: {e}. Sử dụng query gốc.")
+            eng_query = query_text
+        text_tokens = self.tokenizer([eng_query]).to(settings.DEVICE)
         
-        text_tokens = self.tokenizer([query_text]).to(settings.DEVICE)
         with torch.no_grad():
             query_features = self.model.encode_text(text_tokens)
             query_features /= query_features.norm(dim=-1, keepdim=True)
